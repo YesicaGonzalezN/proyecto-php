@@ -11,23 +11,64 @@ switch ($accion) {
     case "Agregar":
         $sentenciaSQL=$conexion->prepare("INSERT INTO productos (nombre, imagen) VALUES (:nombre, :imagen);");
         $sentenciaSQL->bindParam(':nombre', $txtName);
-        $sentenciaSQL->bindParam(':imagen', $txtImage);
+
+        $fecha= new DateTime();
+        $nombreArchivo=($txtImage!="")?$fecha->getTimestamp()."_".$_FILES["txtImage"]["name"]:"imagen.jpg";
+
+        $tmpImage=$_FILES["txtImage"]["tmp_name"];
+
+        if($tmpImage!="") {
+            move_uploaded_file($tmpImage,"../../img/".$nombreArchivo);
+        }
+
+        $sentenciaSQL->bindParam(':imagen', $nombreArchivo);
         $sentenciaSQL->execute();
     break;
-        case "Editar":
-            echo "Presionado boton de editar";
-            break;
-        case "Cancelar":
-            echo "Presionado boton de cancelar";
-            break;
-        case "Seleccionar":
-            echo "Presionado boton de seleccionar";
-            break;
-        case "Borrar":
-            $sentenciaSQL=$conexion->prepare("DELETE FROM productos WHERE id=:id");
+
+    case "Editar":
+        $sentenciaSQL=$conexion->prepare("UPDATE productos SET nombre=:nombre WHERE id=:id");
+        $sentenciaSQL->bindParam(':nombre', $txtName);
+        $sentenciaSQL->bindParam(':id', $txtID);
+        $sentenciaSQL->execute();
+
+        if($txtImage!="") {
+            $sentenciaSQL=$conexion->prepare("UPDATE productos SET imagen=:imagen WHERE id=:id");
+            $sentenciaSQL->bindParam(':imagen', $txtImage);
             $sentenciaSQL->bindParam(':id', $txtID);
             $sentenciaSQL->execute();
-            break;
+        }
+        
+        break;
+
+    case "Cancelar":
+        echo "Presionado boton de cancelar";
+        break;
+
+    case "Seleccionar":
+        $sentenciaSQL=$conexion->prepare("SELECT * FROM productos WHERE id=:id");
+        $sentenciaSQL->bindParam(':id', $txtID);
+        $sentenciaSQL->execute();
+        $producto=$sentenciaSQL->fetch(PDO::FETCH_LAZY);
+        $txtName=$producto['nombre'];
+        $txtImage=$producto['imagen'];
+        break;
+
+    case "Borrar":
+        $sentenciaSQL=$conexion->prepare("SELECT imagen FROM productos WHERE id=:id");
+        $sentenciaSQL->bindParam(':id', $txtID);
+        $sentenciaSQL->execute();
+        $producto=$sentenciaSQL->fetch(PDO::FETCH_LAZY);
+
+        if(isset($producto["imagen"]) && ($producto["imagen"]!="imagen.jpg")) {
+            if(file_exists("../../img/".$producto["imagen"])){
+                unlink("../../img/".$producto["imagen"]);
+            }
+        }
+
+        $sentenciaSQL=$conexion->prepare("DELETE FROM productos WHERE id=:id");
+        $sentenciaSQL->bindParam(':id', $txtID);
+        $sentenciaSQL->execute();
+         break;
 }
 
 $sentenciaSQL=$conexion->prepare("SELECT * FROM productos");
@@ -45,16 +86,17 @@ $listaDeProductos=$sentenciaSQL->fetchAll(PDO::FETCH_ASSOC)
             <form method="POST" enctype="multipart/form-data">
                 <div class="form-group mb-4">
                     <label for="txtID">ID</label>
-                    <input type="text" class="form-control" name="txtID" id="txtID">
+                    <input type="text" value="<?php echo $txtID; ?>" class="form-control" name="txtID" id="txtID">
                 </div>
 
                 <div class="form-group mb-4">
                     <label for="txtName">Nombre</label>
-                    <input type="text" class="form-control" name="txtName" id="txtName">
+                    <input type="text" value="<?php echo $txtName; ?>" class="form-control" name="txtName" id="txtName">
                 </div>
 
                 <div class="form-group mb-5">
                     <label for="txtImage">Imagen</label>
+                    <?php echo $txtID; ?>
                     <input type="file" class="form-control" name="txtImage" id="txtImage">
                 </div>
 
